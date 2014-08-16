@@ -8,3 +8,4 @@ Add ook hierso jou probleme, hoekom dit n probleem is en wat jou oplossing is. (
 
 Sender:
 break file into byte array -> problem is determining from that how much to put into a datagram
+Convert byte[] to Object -> problem is that Object is not serializable
