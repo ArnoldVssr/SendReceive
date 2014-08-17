@@ -27,7 +27,7 @@ public class Sender extends Thread
 		{
 			socket = new DatagramSocket(port);
 			InetAddress address = InetAddress.getByName(host);
-			RandomAccessFile selectedFile = new RandomAccessFile("ta.png", "r");
+			RandomAccessFile selectedFile = new RandomAccessFile("otw.mkv", "r");
 			
 			int fileSize = (int) selectedFile.length();
 			System.out.println("file size: "  + fileSize);
@@ -52,7 +52,7 @@ public class Sender extends Thread
 			System.out.println("have to send " + numPackets + " packets");
 			System.out.println();
 			long counter = 0;
-			while (counter < numPackets) 
+			while (counter <= numPackets) 
 			{
 				dataArray = new byte[CHUNKSIZE];
 				byte[] seqArr = byteCasting.longToBytes(counter);
@@ -69,6 +69,7 @@ public class Sender extends Thread
 		            ArrayList<Long> seq = (ArrayList<Long>) byteCasting.bytesToObject(packet.getData());
 				}
 			}
+			selectedFile.close();
 		}
 		catch (Exception e)
 		{

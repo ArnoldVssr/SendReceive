@@ -38,7 +38,7 @@ public class Receiver
 	{
 		try 
 		{
-			recFile = new RandomAccessFile(filename + "_test", "rw");
+			recFile = new RandomAccessFile("ntw.mkv", "rw");
 		} 
 		catch (FileNotFoundException e) 
 		{
@@ -62,9 +62,21 @@ public class Receiver
 		while (packetsReceived != packetsExpected)
 		{
 			recPacket = new DatagramPacket(filedata, filedata.length);
+			
 			try
 			{
 				dataGramSocket.receive(recPacket);
+				filedata = recPacket.getData();
+				
+				byte[] seqNumArr = new byte[64];
+				long seqnum = 0;
+				System.arraycopy(filedata, 0, seqNumArr, 0, 64);
+				seqnum = byteCasting.bytesToLong(seqNumArr);
+				
+				receivedSeq.add(seqnum);
+				
+				recFile.seek(seqnum*(dataPacketSize-64));
+				recFile.write(filedata, 64, dataPacketSize-64);
 			}
 			catch (IOException e)
 			{
@@ -74,7 +86,11 @@ public class Receiver
 					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
 					dataGramSocket.send(packet);
 					packetsReceived += receivedSeq.size();
-					System.out.println(packetsReceived);
+					for (Long i: receivedSeq)
+					{
+						System.out.println(i);
+					}
+					//System.out.println(packetsReceived);
 					receivedSeq.clear();
 				} 
 		        catch (IOException e1) 
@@ -82,23 +98,21 @@ public class Receiver
 					e1.printStackTrace();
 				}
 			}
-			
-			filedata = recPacket.getData();
-			byte[] seqNumArr = new byte[64];
-			long seqnum = 0;
-			System.arraycopy(filedata, 0, seqNumArr, 0, 64);
-			seqnum = byteCasting.bytesToLong(seqNumArr);
-			receivedSeq.add(seqnum);
-			try
-			{
-				recFile.seek(seqnum*(dataPacketSize-64));
-				recFile.write(filedata, 64, dataPacketSize-64);
-			}
-			catch (Exception e)
-			{
-				System.out.println("Error with handeling signal numbers");
-			}
 		}
+
+		try 
+		{
+			byte[] buf = byteCasting.objectToBytes(receivedSeq);
+			DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
+			dataGramSocket.send(packet);
+			packetsReceived += receivedSeq.size();
+			recFile.close();
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+		
 		return true;
 	}
 	
@@ -130,8 +144,8 @@ public class Receiver
 			while (true)
 			{
 				//String[] filedata = (String[]) byteCasting.bytesToObject(recbuf);
-				packetsExpected = 46;//Integer.parseInt(filedata[1]);
-				packetsPerSend = 46;//Integer.parseInt(filedata[2]);
+				packetsExpected = 13823;//Integer.parseInt(filedata[1]);
+				packetsPerSend = 13823;//Integer.parseInt(filedata[2]);
 				boolean done = fileTransfer("ta.png");
 				
 				// Moet steeds probeer uitvind hoe om meer reqeust te hanteer.
