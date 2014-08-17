@@ -14,14 +14,21 @@ public class Sender extends Thread
 	//private byte[] sendArray;
 	//private byte[] receiveArray;
 	private byte[] dataArray;
-	private final int CHUNKSIZE = 64000;
+	private final int CHUNKSIZE = 63936;
+	
+	private int port = 6066;
+	private String host = "localhost";
+	
 	//private HashMap<Integer, int[]> SentData = new HashMap<Integer, int[]>();
 	//private boolean keepAlive = true;
 	
 	public void run()
 	{
-		int port = 6066;
-		String host = "localhost";
+		SendUDP();
+	}
+	
+	public void SendUDP()
+	{
 		try 
 		{
 			socket = new DatagramSocket(port);
@@ -47,6 +54,7 @@ public class Sender extends Thread
 			System.out.println();
 			
 			int offset = 0;
+			long count = 0;
 			
 			while (selectedFile.getFilePointer() < selectedFile.length())
 			{	
@@ -65,11 +73,15 @@ public class Sender extends Thread
 				
 				System.out.println("send size: " + sendingSize);
 				System.out.println("offset: " + offset);
+				System.out.println("count: " + count);
 				
-				dataArray = new byte[sendingSize];
+				dataArray = new byte[sendingSize+64];
+				
+				byte[] seqNum = ByteCasting.longToBytes(count);
+				System.arraycopy(seqNum, 0, dataArray, 0, 64);
 				
 				selectedFile.seek((long) offset);
-				selectedFile.read(dataArray, 0, sendingSize);
+				selectedFile.read(dataArray, 64, sendingSize);
 				//selectedFile.read(dataArray, offset, sendingSize);
 				
 				DatagramPacket packet = new DatagramPacket(dataArray, dataArray.length, address, 2000); 
@@ -80,18 +92,15 @@ public class Sender extends Thread
 				
 				dataLeft = dataLeft - CHUNKSIZE;
 				offset = offset + sendingSize;
+				count++;
 				
-			}		
+			}
+			selectedFile.close();
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace();
 		}
-	}
-	
-	public static void SendUDP()
-	{
-		
 	}
 	
 	public static void SendTCP()
