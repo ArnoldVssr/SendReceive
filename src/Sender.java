@@ -26,7 +26,7 @@ public class Sender extends Thread
 		{
 			socket = new DatagramSocket(port);
 			InetAddress address = InetAddress.getByName(host);
-			RandomAccessFile selectedFile = new RandomAccessFile("send.txt", "r");
+			RandomAccessFile selectedFile = new RandomAccessFile("drow.jpg", "r");
 			int fileSize = (int) selectedFile.length();
 			System.out.println("file size: "  + fileSize);
 			int numPackets = 0;
@@ -46,30 +46,42 @@ public class Sender extends Thread
 			System.out.println("have to send " + numPackets + " packets");
 			System.out.println();
 			
-			for (int i = 0; i < numPackets; i++)
-			{
+			int offset = 0;
+			
+			while (selectedFile.getFilePointer() < selectedFile.length())
+			{	
 				if (dataLeft < CHUNKSIZE)
 				{
 					sendingSize = dataLeft;
+					if (sendingSize < 0)
+					{
+						sendingSize = -1* sendingSize;
+					}
 				}
 				else
 				{
 					sendingSize = CHUNKSIZE;
 				}
 				
-				System.out.println("sending a packet of: " + sendingSize + "bytes");
+				System.out.println("send size: " + sendingSize);
+				System.out.println("offset: " + offset);
+				
 				dataArray = new byte[sendingSize];
-			
-				System.out.println("this is offset: " + i * CHUNKSIZE);
-				while (selectedFile.getFilePointer() < selectedFile.length())
-				{	
-					selectedFile.read(dataArray, 0, sendingSize);
-					
-				}
+				
+				selectedFile.seek((long) offset);
+				selectedFile.read(dataArray, 0, sendingSize);
+				//selectedFile.read(dataArray, offset, sendingSize);
+				
+				DatagramPacket packet = new DatagramPacket(dataArray, dataArray.length, address, 2000); 
+		        socket.send(packet);
+		        
+		        System.out.println("sending a packet of: " + sendingSize + "bytes");
+		        System.out.println();
 				
 				dataLeft = dataLeft - CHUNKSIZE;
+				offset = offset + sendingSize;
 				
-			}			
+			}		
 		}
 		catch (Exception e)
 		{
