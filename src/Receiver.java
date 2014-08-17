@@ -36,74 +36,69 @@ public class Receiver
 	// Sending filename to set it inside this method rather than main.
 	public static boolean fileTransfer(String filename)
 	{
-			try 
-			{
-				recFile = new RandomAccessFile(filename + "_test", "rw");
-			} 
-			catch (FileNotFoundException e) 
-			{
-				e.printStackTrace();
-			}
-			
-			byte[] filedata = new byte[dataPacketSize];
-			
-			//recPacket = new DatagramPacket(filedata, filedata.length);
-			//sendbuf = new byte[socket.getSendBufferSize()];
-			//recbuf = new byte[socket.getReceiveBufferSize()];
-			
+		try 
+		{
+			recFile = new RandomAccessFile(filename + "_test", "rw");
+		} 
+		catch (FileNotFoundException e) 
+		{
+			e.printStackTrace();
+		}
+		
+		byte[] filedata = new byte[dataPacketSize];
+		
+		//sendbuf = new byte[socket.getSendBufferSize()];
+		//recbuf = new byte[socket.getReceiveBufferSize()];
+		
+		try
+		{
+			dataGramSocket.setSoTimeout(200);
+		}
+		catch (SocketException e)
+		{
+			System.out.println("Socket exception, line 60");
+		}
+
+		while (packetsReceived != packetsExpected)
+		{
+			recPacket = new DatagramPacket(filedata, filedata.length);
 			try
 			{
-				dataGramSocket.setSoTimeout(200);
+				dataGramSocket.receive(recPacket);
 			}
-			catch (SocketException e)
+			catch (IOException e)
 			{
-				//Do nothin
-			}
-
-			while (packetsReceived != packetsExpected)
-			{
-				//long startTime = System.nanoTime();
-				System.out.println("Before start");
-				recPacket = new DatagramPacket(filedata, filedata.length);
-				try
-				{
-					dataGramSocket.receive(recPacket);
-				}
-				catch (IOException e)
-				{
-					//Do nothin
-					byte[] buf = new byte[256];
+		        try 
+		        {
+		        	byte[] buf = byteCasting.objectToBytes(receivedSeq);
 					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-			        try 
-			        {
-						dataGramSocket.send(packet);
-					} 
-			        catch (IOException e1) 
-			        {
-						e1.printStackTrace();
-					}
+					dataGramSocket.send(packet);
+					packetsReceived += receivedSeq.size();
+					System.out.println(packetsReceived);
+					receivedSeq.clear();
+				} 
+		        catch (IOException e1) 
+		        {
+					e1.printStackTrace();
 				}
-				filedata = recPacket.getData();
-				System.out.println("After start");
-				
-				byte[] seqNumArr = new byte[64];
-				long seqnum = 0;
-				System.arraycopy(filedata, 0, seqNumArr, 0, 64);
-				seqnum = byteCasting.bytesToLong(seqNumArr);
-				//System.out.println("Number packet in seqeunce: " + seqnum);
-				receivedSeq.add(seqnum);
-				try
-				{
-					recFile.seek(seqnum*(dataPacketSize-64));
-					recFile.write(filedata, 64, dataPacketSize-64);
-				}
-				catch (Exception e)
-				{
-					// Do nothin for now
-				}
-				//System.out.println("Number of current packet: " + packetsReceived);
-				packetsReceived++;
 			}
+			
+			filedata = recPacket.getData();
+			byte[] seqNumArr = new byte[64];
+			long seqnum = 0;
+			System.arraycopy(filedata, 0, seqNumArr, 0, 64);
+			seqnum = byteCasting.bytesToLong(seqNumArr);
+			receivedSeq.add(seqnum);
+			try
+			{
+				recFile.seek(seqnum*(dataPacketSize-64));
+				recFile.write(filedata, 64, dataPacketSize-64);
+			}
+			catch (Exception e)
+			{
+				System.out.println("Error with handeling signal numbers");
+			}
+		}
 		return true;
 	}
 	

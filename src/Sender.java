@@ -1,4 +1,5 @@
 import java.net.*;
+import java.util.ArrayList;
 //import java.util.HashMap;
 import java.io.*;
 
@@ -65,33 +66,9 @@ public class Sender extends Thread
 				{
 					packet = new DatagramPacket(buf, buf.length);
 		            socket.receive(packet);
+		            ArrayList<Long> seq = (ArrayList<Long>) byteCasting.bytesToObject(packet.getData());
 				}
 			}
-			
-			/*for (int i = 0; i < numPackets; i++)
-			{
-				if (dataLeft < CHUNKSIZE)
-				{
-					sendingSize = dataLeft;
-				}
-				else
-				{
-					sendingSize = CHUNKSIZE;
-				}
-				
-				System.out.println("sending a packet of: " + sendingSize + "bytes");
-				dataArray = new byte[sendingSize];
-			
-				System.out.println("this is offset: " + i * CHUNKSIZE);
-				while (selectedFile.getFilePointer() < selectedFile.length())
-				{	
-					selectedFile.read(dataArray, 0, sendingSize);
-					
-				}
-				
-				dataLeft = dataLeft - CHUNKSIZE;
-				
-			}*/			
 		}
 		catch (Exception e)
 		{
