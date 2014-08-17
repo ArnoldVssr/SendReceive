@@ -2,16 +2,18 @@ import java.io.*;
 import java.nio.ByteBuffer;
 
 public class byteCasting {
-    private static ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);    
+    private static ByteBuffer buffer;    
 
     // Convert a long to byte array
     public static byte[] longToBytes(long x) {
+    	buffer = ByteBuffer.allocate(Long.SIZE);
         buffer.putLong(0, x);
         return buffer.array();
     }
 
     // Convert a byte array to a long value
     public static long bytesToLong(byte[] bytes) {
+    	buffer = ByteBuffer.allocate(Long.SIZE);
         buffer.put(bytes, 0, bytes.length);
         buffer.flip();//need flip 
         return buffer.getLong();
