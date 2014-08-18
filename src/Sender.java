@@ -1,4 +1,5 @@
 import java.net.*;
+import java.util.ArrayList;
 //import java.util.HashMap;
 import java.io.*;
 
@@ -15,6 +16,7 @@ public class Sender extends Thread
 	//private byte[] receiveArray;
 	private byte[] dataArray;
 	private final int CHUNKSIZE = 63936;
+	private final int PACKETSEND = 4;
 	
 	private int port = 6066;
 	private String host = "localhost";
@@ -37,6 +39,7 @@ public class Sender extends Thread
 			int fileSize = (int) selectedFile.length();
 			System.out.println("file size: "  + fileSize);
 			int numPackets = 0;
+			int sentPackets = 0;
 			
 			if (fileSize > CHUNKSIZE)
 			{
@@ -86,6 +89,7 @@ public class Sender extends Thread
 				
 				DatagramPacket packet = new DatagramPacket(dataArray, dataArray.length, address, 2000); 
 		        socket.send(packet);
+		        sentPackets++;
 		        
 		        System.out.println("sending a packet of: " + sendingSize + "bytes");
 		        System.out.println();
@@ -93,6 +97,26 @@ public class Sender extends Thread
 				dataLeft = dataLeft - CHUNKSIZE;
 				offset = offset + sendingSize;
 				count++;
+				
+				if ((sentPackets % PACKETSEND) == 0)
+				{
+					System.out.println("sent 4 packets, waiting for reply");
+					packet = new DatagramPacket(dataArray, dataArray.length);
+					socket.receive(packet);
+					ArrayList<Long> receiverNumbers = (ArrayList<Long>) ByteCasting.bytesToObject(packet.getData());
+					
+					if (receiverNumbers.size() == 4)
+					{
+						//continue with send
+						System.out.println("Receiver got all 4 packets.");
+					}
+					else
+					{
+						//Resend
+						System.out.println("Packets dropped: " + (4 -receiverNumbers.size()));
+					}
+				}
+				
 				
 			}
 			selectedFile.close();
@@ -116,5 +140,10 @@ public class Sender extends Thread
 	public static void FileBrowser()
 	{
 		
+	}
+	
+	public static int ReSendPackets(ArrayList<Long> receiverNumbers)
+	{
+		return 0;
 	}
 }
