@@ -33,12 +33,15 @@ public class Receiver
 	public static int packetsExpected = 0;
 	static int dataPacketSize = 64000;
 	
+	private static String fileName = "";
+	private static long fileSize = 0;
+	
 	// Sending filename to set it inside this method rather than main.
 	public static boolean fileTransfer(String filename)
 	{
 		try 
 		{
-			recFile = new RandomAccessFile("ntw.mkv", "rw");
+			recFile = new RandomAccessFile("testing.txt", "rw");
 		} 
 		catch (FileNotFoundException e) 
 		{
@@ -133,30 +136,82 @@ public class Receiver
 		 * Maak gebruik van die Seqnumber om dit te cast na byte[].
 		 * */
 		
-		if (args.length != 2) {
-            System.out.println("Usage: java QuoteClient <hostname> <port>");
-            return;
-		}
+		//if (args.length != 2) {
+            //System.out.println("Usage: java QuoteClient <hostname> <port>");
+            //return;
+		//}
 		
 		// Set socket na regte port volgens server.
 		// UDP en TCP behoort op sele port te werk
 		//int port = Integer.parseInt(args[1]);
-		address = InetAddress.getByName(args[0]);
+		address = InetAddress.getByName("localhost");
 		//socket = new Socket(address,port);
 		dataGramSocket = new DatagramSocket(2000);
 		//socket.getInputStream().read(recbuf);
-		byte[] buf = new byte[256];
-		DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-        dataGramSocket.send(packet);
+		//byte[] buf = new byte[256];
+		//DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
+        //dataGramSocket.send(packet);
+		
+		byte[] sendbuf = null;
+		byte[] recbuf = null;
+		String[] fileData;		
+		
+		Socket TCPsocket = new Socket("localhost", 6066);
+		sendbuf = new byte[TCPsocket.getSendBufferSize()];
+    	recbuf = new byte[TCPsocket.getReceiveBufferSize()];
+    	
+    	try
+    	{
+	    	TCPsocket.getInputStream().read(recbuf);
+	    	fileData = (String[]) ByteCasting.bytesToObject(recbuf);
+	    	
+			fileName = fileData[0];
+			fileSize = (long) Integer.parseInt(fileData[1]);
+			packetsExpected = Integer.parseInt(fileData[2]);	
+    	}
+    	catch (Exception e)
+    	{
+    		System.err.println("Couldn't get file information");
+    		System.exit(0);
+    	}
+    	
+    	System.out.println(fileName);
+    	System.out.println(fileSize);
+    	System.out.println(packetsExpected);
+    	
+    	//send true if ready
+    	//send false = receiver offline
+    	
+    	
+    	/*
+    	 * 
+    	 * 
+    	 * DOEN
+    	 * 
+    	 * JOU
+    	 * 
+    	 * SEND
+    	 * 
+    	 * ARRAY
+    	 * 
+    	 * SOOS
+    	 * 
+    	 * DIT
+    	 */
+    	sendbuf = ByteCasting.objectToBytes(true);
+		TCPsocket.getOutputStream().write(sendbuf);
+		TCPsocket.getOutputStream().flush();
+		
+		System.out.println("sent true to Sender");
+    	
 		
 		try 
 		{
 			while (true)
 			{
 				//String[] filedata = (String[]) byteCasting.bytesToObject(recbuf);
-				packetsExpected = 1211;//Integer.parseInt(filedata[1]);
 				packetsPerSend = 4;//Integer.parseInt(filedata[2]);
-				boolean done = fileTransfer("ta.png");
+				boolean done = fileTransfer("send.txt");
 				
 				// Moet steeds probeer uitvind hoe om meer reqeust te hanteer.
 				// Miskien 'n TCP signal of iets stuur, nog onseker.
@@ -174,7 +229,7 @@ public class Receiver
 		catch (Exception e)
 		{
 			e.printStackTrace();
-		} 
+		}
 		
 		// Test code related stuff, to have idea of how it works. (personal use)
 		/*********************************************************************/
