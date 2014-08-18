@@ -16,9 +16,9 @@ import java.nio.channels.*;
 public class Receiver 
 {
 	// TCP related stuff
-	/*private static Socket socket = null;
+	private static Socket socket = null;
 	private static byte[] sendbuf = null;
-	private static byte[] recbuf = null;*/
+	private static byte[] recbuf = null;
 	
 	// UDP related stuff
 	private static DatagramSocket dataGramSocket = null;
@@ -31,7 +31,7 @@ public class Receiver
 	private static int packetsReceived = 0;
 	public static int packetsPerSend = 0;
 	public static int packetsExpected = 0;
-	public static int dataPacketSize = 64000;
+	static int dataPacketSize = 64000;
 	
 	// Sending filename to set it inside this method rather than main.
 	public static boolean fileTransfer(String filename)
@@ -52,19 +52,29 @@ public class Receiver
 		
 		try
 		{
-			dataGramSocket.setSoTimeout(200);
+			dataGramSocket.setSoTimeout(100);
 		}
 		catch (SocketException e)
 		{
 			System.out.println("Socket exception, line 60");
 		}
 
+		int packetsDropped = 0;
+		
 		while (packetsReceived != packetsExpected)
 		{
 			recPacket = new DatagramPacket(filedata, filedata.length);
 			
 			try
 			{
+				if (receivedSeq.size() == packetsPerSend)
+				{
+					byte[] buf = byteCasting.objectToBytes(receivedSeq);
+					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
+					dataGramSocket.send(packet);
+					packetsReceived += receivedSeq.size();
+					receivedSeq.clear();
+				}
 				dataGramSocket.receive(recPacket);
 				filedata = recPacket.getData();
 				
@@ -86,11 +96,8 @@ public class Receiver
 					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
 					dataGramSocket.send(packet);
 					packetsReceived += receivedSeq.size();
-					for (Long i: receivedSeq)
-					{
-						System.out.println(i);
-					}
-					//System.out.println(packetsReceived);
+					//packetsDropped += 16 - receivedSeq.size();
+					System.out.println(packetsReceived);
 					receivedSeq.clear();
 				} 
 		        catch (IOException e1) 
@@ -98,6 +105,7 @@ public class Receiver
 					e1.printStackTrace();
 				}
 			}
+			//System.out.println(packetsReceived);
 		}
 
 		try 
@@ -144,8 +152,8 @@ public class Receiver
 			while (true)
 			{
 				//String[] filedata = (String[]) byteCasting.bytesToObject(recbuf);
-				packetsExpected = 13823;//Integer.parseInt(filedata[1]);
-				packetsPerSend = 13823;//Integer.parseInt(filedata[2]);
+				packetsExpected = 1211;//Integer.parseInt(filedata[1]);
+				packetsPerSend = 4;//Integer.parseInt(filedata[2]);
 				boolean done = fileTransfer("ta.png");
 				
 				// Moet steeds probeer uitvind hoe om meer reqeust te hanteer.
