@@ -178,34 +178,16 @@ public class Sender extends Thread
 			
 			while (selectedFile.getFilePointer() < fileSize)
 			{
-<<<<<<< HEAD
 				selectedFile.read(sendbuf);
 				TCPsocket.getOutputStream().write(sendbuf);	
 				TCPsocket.getOutputStream().flush();
 				if (selectedFile.getFilePointer() + CHUNKSIZE > fileSize)
 				{
 					sendbuf = new byte[(int) (fileSize - selectedFile.getFilePointer())];
-=======
-				dataArray = new byte[CHUNKSIZE];
-				byte[] seqArr = ByteCasting.longToBytes(counter);
-				//System.out.println(counter);
-				System.arraycopy(seqArr, 0,	dataArray, 0, 64);
-				selectedFile.read(dataArray, 64, CHUNKSIZE - 64);
-				packet = new DatagramPacket(dataArray, dataArray.length, address, 2000);
-				socket.send(packet);
-				counter++;
-				if (counter%4 == 0)
-				{
-					packet = new DatagramPacket(buf, buf.length);
-		            socket.receive(packet);
-		            ArrayList<Long> seq = (ArrayList<Long>) ByteCasting.bytesToObject(packet.getData());
->>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 				}
 			}
 			TCPsocket.close();
 			selectedFile.close();
-			socket.disconnect();
-			socket.close();
 		}
 		catch (Exception e)
 		{
