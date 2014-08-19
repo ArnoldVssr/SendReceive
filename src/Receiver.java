@@ -29,16 +29,18 @@ public class Receiver
 	private static ArrayList<Long> receivedSeq = new ArrayList<Long>();
 	private static RandomAccessFile recFile = null;
 	private static int packetsReceived = 0;
-	public static int packetsPerSend = 0;
-	public static int packetsExpected = 0;
+	private static int packetsDropped = 0;
+	private static int packetsPerSend = 0;
+	private static int packetsExpected = 0;
 	static int dataPacketSize = 64000;
 	
 	// Sending filename to set it inside this method rather than main.
 	public static boolean fileTransfer(String filename)
 	{
+		System.out.println(packetsExpected);
 		try 
 		{
-			recFile = new RandomAccessFile("ntw.mkv", "rw");
+			recFile = new RandomAccessFile("test_" + filename, "rw");
 		} 
 		catch (FileNotFoundException e) 
 		{
@@ -46,9 +48,6 @@ public class Receiver
 		}
 		
 		byte[] filedata = new byte[dataPacketSize];
-		
-		//sendbuf = new byte[socket.getSendBufferSize()];
-		//recbuf = new byte[socket.getReceiveBufferSize()];
 		
 		try
 		{
@@ -58,13 +57,11 @@ public class Receiver
 		{
 			System.out.println("Socket exception, line 60");
 		}
-
-		int packetsDropped = 0;
 		
-		while (packetsReceived <= packetsExpected)
+		while (packetsReceived < packetsExpected)
 		{
 			recPacket = new DatagramPacket(filedata, filedata.length);
-			
+			//System.out.println(packetsReceived);
 			try
 			{
 				if (receivedSeq.size() == packetsPerSend)
@@ -72,21 +69,19 @@ public class Receiver
 					sendbuf = ByteCasting.objectToBytes(receivedSeq);
 					socket.getOutputStream().write(sendbuf);
 					socket.getOutputStream().flush();
-					packetsReceived += receivedSeq.size();
 					receivedSeq.clear();
 				}
 				dataGramSocket.receive(recPacket);
 				filedata = recPacket.getData();
-				
-				byte[] seqNumArr = new byte[64];
+				byte[] seqNumArr = new byte[Long.SIZE];
 				long seqnum = 0;
-				System.arraycopy(filedata, 0, seqNumArr, 0, 64);
+				System.arraycopy(filedata, 0, seqNumArr, 0, Long.SIZE);
 				seqnum = ByteCasting.bytesToLong(seqNumArr);
 				
 				receivedSeq.add(seqnum);
 				
-				recFile.seek(seqnum*(dataPacketSize-64));
-				recFile.write(filedata, 64, dataPacketSize-64);
+				recFile.seek(seqnum*(dataPacketSize-Long.SIZE));
+				recFile.write(filedata, Long.SIZE, dataPacketSize-Long.SIZE);
 			}
 			catch (IOException e)
 			{
@@ -95,7 +90,7 @@ public class Receiver
 		        	sendbuf = ByteCasting.objectToBytes(receivedSeq);
 					socket.getOutputStream().write(sendbuf);
 					socket.getOutputStream().flush();
-					System.out.println(packetsReceived);
+					packetsDropped += packetsPerSend - receivedSeq.size();
 					receivedSeq.clear();
 				} 
 		        catch (Exception e1) 
@@ -103,21 +98,15 @@ public class Receiver
 					e1.printStackTrace();
 				}
 			}
-			//System.out.println(packetsReceived);
+			packetsReceived += 1;
+			System.out.println(packetsReceived);
 		}
+		dataGramSocket.disconnect();
+		dataGramSocket.close();
+		System.out.println(packetsDropped);
 
-		try 
-		{
-			byte[] buf = ByteCasting.objectToBytes(receivedSeq);
-			DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-			dataGramSocket.send(packet);
-			packetsReceived += receivedSeq.size();
-			recFile.close();
-		} 
-		catch (IOException e) 
-		{
-			e.printStackTrace();
-		}
+		
+		
 		
 		return true;
 	}
