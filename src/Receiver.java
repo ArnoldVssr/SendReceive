@@ -32,8 +32,12 @@ public class Receiver
 	private static int packetsDropped = 0;
 	private static int packetsPerSend = 0;
 	private static int packetsExpected = 0;
+<<<<<<< HEAD
 	private static int dataPacketSize = 0;
 	private static int fileSize = 0;
+=======
+	static int dataPacketSize = 64000;
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 	
 	// Sending filename to set it inside this method rather than main.
 	public static boolean UDPFileTransfer(String filename)
@@ -58,7 +62,11 @@ public class Receiver
 		{
 			System.out.println("Socket exception, line 60");
 		}
+<<<<<<< HEAD
 		long seqnum = 0;
+=======
+		
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 		while (packetsReceived < packetsExpected)
 		{
 			recPacket = new DatagramPacket(filedata, filedata.length);
@@ -76,7 +84,11 @@ public class Receiver
 				packetsReceived += 1;
 				filedata = recPacket.getData();
 				byte[] seqNumArr = new byte[Long.SIZE];
+<<<<<<< HEAD
 				//long seqnum = 0;
+=======
+				long seqnum = 0;
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 				System.arraycopy(filedata, 0, seqNumArr, 0, Long.SIZE);
 				seqnum = ByteCasting.bytesToLong(seqNumArr);
 				
@@ -89,7 +101,10 @@ public class Receiver
 			{
 		        try 
 		        {
+<<<<<<< HEAD
 		        	System.out.println("dropped");
+=======
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 		        	sendbuf = ByteCasting.objectToBytes(receivedSeq);
 					socket.getOutputStream().write(sendbuf);
 					socket.getOutputStream().flush();
@@ -101,7 +116,12 @@ public class Receiver
 					e1.printStackTrace();
 				}
 			}
+<<<<<<< HEAD
 			//System.out.println(packetsReceived);
+=======
+			packetsReceived += 1;
+			System.out.println(packetsReceived);
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 		}
 		dataGramSocket.disconnect();
 		dataGramSocket.close();
@@ -110,6 +130,7 @@ public class Receiver
 		
 		
 		
+<<<<<<< HEAD
 		return true;
 	}
 	
@@ -137,6 +158,8 @@ public class Receiver
 		{
 			e.printStackTrace();
 		}
+=======
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 		return true;
 	}
 	
@@ -167,6 +190,7 @@ public class Receiver
 		try 
 		{
 			boolean done = false;
+<<<<<<< HEAD
 			String typeSend = "";
 			
 			while (!done)
@@ -177,11 +201,19 @@ public class Receiver
 				packetsExpected = Integer.parseInt(filedata[3]);
 				packetsPerSend = Integer.parseInt(filedata[4]);
 				dataPacketSize = Integer.parseInt(filedata[5]);
+=======
+			while (!done)
+			{
+				String[] filedata = (String[]) ByteCasting.bytesToObject(recbuf);
+				packetsExpected = Integer.parseInt(filedata[1]);
+				packetsPerSend = Integer.parseInt(filedata[2]);
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 				
 				sendbuf = ByteCasting.objectToBytes(true);
 				socket.getOutputStream().write(sendbuf);
 				socket.getOutputStream().flush();
 				
+<<<<<<< HEAD
 				if (typeSend.equalsIgnoreCase("true"))
 				{
 					done = UDPFileTransfer(filedata[1]);
@@ -193,6 +225,9 @@ public class Receiver
 					done = TCPFileTransfer(filedata[1]);
 				}
 				
+=======
+				done = fileTransfer(filedata[0]);
+>>>>>>> e035ace6c74da6ddd3adea2b2669ebd4a9d1e590
 				
 				// Moet steeds probeer uitvind hoe om meer reqeust te hanteer.
 				// Miskien 'n TCP signal of iets stuur, nog onseker.
