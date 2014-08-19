@@ -1,7 +1,7 @@
 import java.io.*;
 import java.nio.ByteBuffer;
 
-public class byteCasting {
+public class ByteCasting {
     private static ByteBuffer buffer;    
 
     // Convert a long to byte array
