@@ -1,11 +1,11 @@
 import java.net.*;
 import java.util.ArrayList;
-//import java.util.HashSet;
-//import java.util.Timer;
-//import java.util.concurrent.TimeUnit;
-//import java.awt.List;
+import java.util.HashSet;
+import java.util.Timer;
+import java.util.concurrent.TimeUnit;
+import java.awt.List;
 import java.io.*;
-//import java.nio.channels.*;
+import java.nio.channels.*;
 /*
  * Author: Timotius Johannes Petrus Gabriel Butler
  * 
@@ -16,9 +16,9 @@ import java.io.*;
 public class Receiver 
 {
 	// TCP related stuff
-	//private static Socket socket = null;
-	//private static byte[] sendbuf = null;
-	//private static byte[] recbuf = null;
+	private static Socket socket = null;
+	private static byte[] sendbuf = null;
+	private static byte[] recbuf = null;
 	
 	// UDP related stuff
 	private static DatagramSocket dataGramSocket = null;
@@ -29,19 +29,21 @@ public class Receiver
 	private static ArrayList<Long> receivedSeq = new ArrayList<Long>();
 	private static RandomAccessFile recFile = null;
 	private static int packetsReceived = 0;
-	public static int packetsPerSend = 0;
-	public static int packetsExpected = 0;
-	static int dataPacketSize = 64000;
-	
-	private static String fileName = "";
-	private static long fileSize = 0;
+	private static int packetsDropped = 0;
+	private static int packetsPerSend = 0;
+	private static int packetsExpected = 0;
+	//static int dataPacketSize = 64000;
+	static int dataPacketSize = 16000;
+	private static int fileSize = 0;
+	private static int CHUNKSIZE;
 	
 	// Sending filename to set it inside this method rather than main.
-	public static boolean fileTransfer(String filename)
+	public static boolean UDPFileTransfer(String filename)
 	{
+		System.out.println(packetsExpected);
 		try 
 		{
-			recFile = new RandomAccessFile("testing.txt", "rw");
+			recFile = new RandomAccessFile("test_" + filename, "rw");
 		} 
 		catch (FileNotFoundException e) 
 		{
@@ -49,9 +51,6 @@ public class Receiver
 		}
 		
 		byte[] filedata = new byte[dataPacketSize];
-		
-		//sendbuf = new byte[socket.getSendBufferSize()];
-		//recbuf = new byte[socket.getReceiveBufferSize()];
 		
 		try
 		{
@@ -61,73 +60,94 @@ public class Receiver
 		{
 			System.out.println("Socket exception, line 60");
 		}
-
-		//int packetsDropped = 0;
-		
-		while (packetsReceived != packetsExpected)
+		long seqnum = 0;
+		while (packetsReceived < packetsExpected)
 		{
 			recPacket = new DatagramPacket(filedata, filedata.length);
-			
+			//System.out.println(packetsReceived);
 			try
 			{
 				if (receivedSeq.size() == packetsPerSend)
 				{
-					//send all received
-					byte[] buf = ByteCasting.objectToBytes(receivedSeq);
-					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-					dataGramSocket.send(packet);
-					packetsReceived += receivedSeq.size();
+					sendbuf = ByteCasting.objectToBytes(receivedSeq);
+					socket.getOutputStream().write(sendbuf);
+					socket.getOutputStream().flush();
 					receivedSeq.clear();
 				}
 				dataGramSocket.receive(recPacket);
+				packetsReceived += 1;
 				filedata = recPacket.getData();
-				
-				byte[] seqNumArr = new byte[64];
-				long seqnum = 0;
-				System.arraycopy(filedata, 0, seqNumArr, 0, 64);
+				byte[] seqNumArr = new byte[Long.SIZE];
+				//long seqnum = 0;
+				System.arraycopy(filedata, 0, seqNumArr, 0, Long.SIZE);
 				seqnum = ByteCasting.bytesToLong(seqNumArr);
 				
 				receivedSeq.add(seqnum);
 				
-				recFile.seek(seqnum*(dataPacketSize-64));
-				recFile.write(filedata, 64, dataPacketSize-64);
+				recFile.seek(seqnum*(dataPacketSize-Long.SIZE));
+				recFile.write(filedata, Long.SIZE, dataPacketSize-Long.SIZE);
 			}
 			catch (IOException e)
 			{
 		        try 
 		        {
-		        	//send seqNum received
-		        	byte[] buf = ByteCasting.objectToBytes(receivedSeq);
-					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-					dataGramSocket.send(packet);
-					packetsReceived += receivedSeq.size();
-					//packetsDropped += 16 - receivedSeq.size();
-					System.out.println(packetsReceived);
+		        	System.out.println("dropped");
+		        	sendbuf = ByteCasting.objectToBytes(receivedSeq);
+					socket.getOutputStream().write(sendbuf);
+					socket.getOutputStream().flush();
+					packetsDropped += packetsPerSend - receivedSeq.size();
 					receivedSeq.clear();
 				} 
-		        catch (IOException e1) 
+		        catch (Exception e1) 
 		        {
 					e1.printStackTrace();
 				}
 			}
 			//System.out.println(packetsReceived);
 		}
+		dataGramSocket.disconnect();
+		dataGramSocket.close();
+		System.out.println(packetsDropped);
 
+		
+		
+		
+		return true;
+	}
+	
+	public static boolean TCPFileTransfer(String filename)
+	{
+		try
+		{
+			recFile = new RandomAccessFile("test_" + filename, "rw");
+		}
+		catch (Exception e)
+		{
+			System.err.println("Do you even open");
+		}
+		System.out.println(packetsExpected);
 		try 
 		{
-			byte[] buf = ByteCasting.objectToBytes(receivedSeq);
-			DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-			dataGramSocket.send(packet);
-			packetsReceived += receivedSeq.size();
-			recFile.close();
+			recbuf = new byte[CHUNKSIZE];
+			while (recFile.getFilePointer() < recFile.length())
+			{
+				if (recFile.length() - recFile.getFilePointer() < CHUNKSIZE)
+				{
+					recbuf = new byte[(int) (recFile.length() - recFile.getFilePointer())];
+				}
+				socket.getInputStream().read(recbuf);
+				recFile.write(recbuf);
+				socket.notifyAll();
+			}
 		} 
 		catch (IOException e) 
 		{
 			e.printStackTrace();
 		}
-		
 		return true;
+		
 	}
+	
 	
 	public static void main(String[] args) throws IOException
 	{		
@@ -136,88 +156,57 @@ public class Receiver
 		 * Maak gebruik van die Seqnumber om dit te cast na byte[].
 		 * */
 		
-		//if (args.length != 2) {
-            //System.out.println("Usage: java QuoteClient <hostname> <port>");
-            //return;
-		//}
+		if (args.length != 2) {
+            System.out.println("Usage: java QuoteClient <hostname> <port>");
+            return;
+		}
 		
 		// Set socket na regte port volgens server.
 		// UDP en TCP behoort op sele port te werk
-		//int port = Integer.parseInt(args[1]);
-		address = InetAddress.getByName("localhost");
-		//socket = new Socket(address,port);
+		int port = Integer.parseInt(args[1]);
+		address = InetAddress.getByName(args[0]);
+		socket = new Socket(address,port);
 		dataGramSocket = new DatagramSocket(2000);
-		//socket.getInputStream().read(recbuf);
-		//byte[] buf = new byte[256];
-		//DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-        //dataGramSocket.send(packet);
 		
-		byte[] sendbuf = null;
-		byte[] recbuf = null;
-		String[] fileData;		
-		
-		Socket TCPsocket = new Socket("localhost", 6066);
-		sendbuf = new byte[TCPsocket.getSendBufferSize()];
-    	recbuf = new byte[TCPsocket.getReceiveBufferSize()];
-    	
-    	try
-    	{
-	    	TCPsocket.getInputStream().read(recbuf);
-	    	fileData = (String[]) ByteCasting.bytesToObject(recbuf);
-	    	
-			fileName = fileData[0];
-			fileSize = (long) Integer.parseInt(fileData[1]);
-			packetsExpected = Integer.parseInt(fileData[2]);	
-    	}
-    	catch (Exception e)
-    	{
-    		System.err.println("Couldn't get file information");
-    		System.exit(0);
-    	}
-    	
-    	System.out.println(fileName);
-    	System.out.println(fileSize);
-    	System.out.println(packetsExpected);
-    	
-    	//send true if ready
-    	//send false = receiver offline
-    	
-    	
-    	/*
-    	 * 
-    	 * 
-    	 * DOEN
-    	 * 
-    	 * JOU
-    	 * 
-    	 * SEND
-    	 * 
-    	 * ARRAY
-    	 * 
-    	 * SOOS
-    	 * 
-    	 * DIT
-    	 */
-    	sendbuf = ByteCasting.objectToBytes(true);
-		TCPsocket.getOutputStream().write(sendbuf);
-		TCPsocket.getOutputStream().flush();
-		
-		System.out.println("sent true to Sender");
-    	
+		recbuf = new byte[socket.getReceiveBufferSize()];
+		sendbuf = new byte[socket.getSendBufferSize()];
+		socket.getInputStream().read(recbuf);
 		
 		try 
 		{
-			while (true)
+			boolean done = false;
+			String typeSend = "";
+			
+			while (!done)
 			{
-				//String[] filedata = (String[]) byteCasting.bytesToObject(recbuf);
-				packetsPerSend = 4;//Integer.parseInt(filedata[2]);
-				boolean done = fileTransfer("send.txt");
+				String[] filedata = (String[]) ByteCasting.bytesToObject(recbuf);
+				typeSend = filedata[0];
+				fileSize = Integer.parseInt(filedata[2]);
+				packetsExpected = Integer.parseInt(filedata[3]);
+				packetsPerSend = Integer.parseInt(filedata[4]);
+				CHUNKSIZE = Integer.parseInt(filedata[5]);
+				
+				sendbuf = ByteCasting.objectToBytes(true);
+				socket.getOutputStream().write(sendbuf);
+				socket.getOutputStream().flush();
+				
+				if (typeSend.equalsIgnoreCase("true"))
+				{
+					done = UDPFileTransfer(filedata[1]);
+				}
+				else
+				{
+					socket.setReceiveBufferSize(CHUNKSIZE);
+					recbuf = new byte[socket.getReceiveBufferSize()];
+					done = TCPFileTransfer(filedata[1]);
+				}
+				
 				
 				// Moet steeds probeer uitvind hoe om meer reqeust te hanteer.
 				// Miskien 'n TCP signal of iets stuur, nog onseker.
 				if (done == true)
 				{
-					break;
+					//Prompt user for moar
 				}
 				else 
 				{
@@ -229,51 +218,7 @@ public class Receiver
 		catch (Exception e)
 		{
 			e.printStackTrace();
-		}
-		
-		// Test code related stuff, to have idea of how it works. (personal use)
-		/*********************************************************************/
-		
-		/*RandomAccessFile test = null;
-		RandomAccessFile newFile = new RandomAccessFile("test.png", "rw");
-		//RandomAccessFile newFile = new RandomAccessFile("ntw.mkv", "rw");
-		
-		
-		byte[] recbuff = new byte[1024];
-		
-		try {
-			test = new RandomAccessFile("ta.png", "r");
-			//test = new RandomAccessFile("otw.mkv", "r");
-			
-			long longnum = 0;
-			byte[] longbytearr = Seqnumber.longToBytes(longnum);
-			
-			while (test.getFilePointer() < test.length())
-			{
-				System.arraycopy(longbytearr, 0, recbuff, 0, 8);
-				//System.out.println(test.getFilePointer());
-				test.read(recbuff,8,dataPacketSize);
-				newFile.write(recbuff,8,dataPacketSize);
-				if (longnum == 0)
-				{
-					byte[] seqnum = new byte[8];
-					System.arraycopy(recbuff, 0, seqnum, 0, 8);
-					receivedSeq.add(Seqnumber.bytesToLong(seqnum));
-				}
-				longnum++;
-				longbytearr = Seqnumber.longToBytes(longnum);
-			}
-		} catch (Exception e)
-		{
-			e.printStackTrace();
-		}
-		System.out.println(test.length());
-		test.close();
-		newFile.close();
-		
-		*/
-		
-		/*********************************************************************/
+		} 
 	}
 
 }
