@@ -1,6 +1,11 @@
 import java.net.*;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Timer;
+import java.util.concurrent.TimeUnit;
+import java.awt.List;
 import java.io.*;
+import java.nio.channels.*;
 /*
  * Author: Timotius Johannes Petrus Gabriel Butler
  * 
@@ -23,19 +28,20 @@ public class Receiver
 	// Send and receive related stuff
 	private static ArrayList<Long> receivedSeq = new ArrayList<Long>();
 	private static RandomAccessFile recFile = null;
-	private static int packetsSupposedToRecv = 0;
 	private static int packetsReceived = 0;
 	private static int packetsDropped = 0;
 	private static int packetsPerSend = 0;
 	private static int packetsExpected = 0;
-	static int dataPacketSize = 64000;
+	private static int dataPacketSize = 0;
+	private static int fileSize = 0;
 	
 	// Sending filename to set it inside this method rather than main.
-	public static boolean fileTransfer(String filename)
+	public static boolean UDPFileTransfer(String filename)
 	{
+		System.out.println(packetsExpected);
 		try 
 		{
-			recFile = new RandomAccessFile("new_" + filename, "rw");
+			recFile = new RandomAccessFile("test_" + filename, "rw");
 		} 
 		catch (FileNotFoundException e) 
 		{
@@ -52,11 +58,11 @@ public class Receiver
 		{
 			System.out.println("Socket exception, line 60");
 		}
-		
-		while (packetsSupposedToRecv < packetsExpected)
+		long seqnum = 0;
+		while (packetsReceived < packetsExpected)
 		{
 			recPacket = new DatagramPacket(filedata, filedata.length);
-			
+			//System.out.println(packetsReceived);
 			try
 			{
 				if (receivedSeq.size() == packetsPerSend)
@@ -64,71 +70,84 @@ public class Receiver
 					sendbuf = ByteCasting.objectToBytes(receivedSeq);
 					socket.getOutputStream().write(sendbuf);
 					socket.getOutputStream().flush();
-					packetsReceived += receivedSeq.size();
-					//System.out.println(receivedSeq.size());
 					receivedSeq.clear();
 				}
 				dataGramSocket.receive(recPacket);
+				packetsReceived += 1;
 				filedata = recPacket.getData();
-				
-				byte[] seqNumArr = new byte[64];
-				long seqnum = 0;
-				System.arraycopy(filedata, 0, seqNumArr, 0, 64);
+				byte[] seqNumArr = new byte[Long.SIZE];
+				//long seqnum = 0;
+				System.arraycopy(filedata, 0, seqNumArr, 0, Long.SIZE);
 				seqnum = ByteCasting.bytesToLong(seqNumArr);
 				
 				receivedSeq.add(seqnum);
 				
-				recFile.seek(seqnum*(dataPacketSize-64));
-				recFile.write(filedata, 64, dataPacketSize-64);
+				recFile.seek(seqnum*(dataPacketSize-Long.SIZE));
+				recFile.write(filedata, Long.SIZE, dataPacketSize-Long.SIZE);
 			}
 			catch (IOException e)
 			{
 		        try 
 		        {
+		        	System.out.println("dropped");
 		        	sendbuf = ByteCasting.objectToBytes(receivedSeq);
 					socket.getOutputStream().write(sendbuf);
 					socket.getOutputStream().flush();
 					packetsDropped += packetsPerSend - receivedSeq.size();
-					packetsReceived += receivedSeq.size();
-					//System.out.println(receivedSeq.size());
 					receivedSeq.clear();
 				} 
-		        catch (IOException e1) 
+		        catch (Exception e1) 
 		        {
 					e1.printStackTrace();
 				}
 			}
-			packetsSupposedToRecv += 1;
+			//System.out.println(packetsReceived);
 		}
-		try 
-		{
-			recFile.close();
-			dataGramSocket.close();
-		} 
-		catch (IOException e) 
-		{
-			e.printStackTrace();
-		}
-		
+		dataGramSocket.disconnect();
+		dataGramSocket.close();
 		System.out.println(packetsDropped);
-		/*try 
-		{
-			byte[] buf = ByteCasting.objectToBytes(receivedSeq);
-			DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6000);
-			dataGramSocket.send(packet);
-			packetsReceived += receivedSeq.size();
-			recFile.close();
-		} 
-		catch (IOException e) 
-		{
-			e.printStackTrace();
-		}*/
+
+		
+		
 		
 		return true;
 	}
 	
+	public static boolean TCPFileTransfer(String filename)
+	{
+		System.out.println("Packets expected: " + packetsExpected);	
+		try 
+		{
+			recFile = new RandomAccessFile("test_" + filename, "rw");
+			recbuf = new byte[dataPacketSize];
+			while (recFile.getFilePointer() < fileSize)
+			{
+				socket.getInputStream().read(recbuf);
+				recFile.write(recbuf);
+				
+				if (recFile.getFilePointer() + dataPacketSize > fileSize)
+				{
+					recbuf = new byte[(int) (fileSize - recFile.getFilePointer())];
+				}
+			}
+			socket.close();
+			recFile.close();
+		} 
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+		return true;
+	}
+	
+	
 	public static void main(String[] args) throws IOException
 	{		
+		/* Stuur die filename, expected packets(total), aantaal packets per send
+		 * Laat dit String[] object wees, waar dit in die bogenoemde order is.
+		 * Maak gebruik van die Seqnumber om dit te cast na byte[].
+		 * */
+		
 		if (args.length != 2) {
             System.out.println("Usage: java QuoteClient <hostname> <port>");
             return;
@@ -138,7 +157,6 @@ public class Receiver
 		// UDP en TCP behoort op sele port te werk
 		int port = Integer.parseInt(args[1]);
 		address = InetAddress.getByName(args[0]);
-		
 		socket = new Socket(address,port);
 		dataGramSocket = new DatagramSocket(2000);
 		
@@ -148,33 +166,39 @@ public class Receiver
 		
 		try 
 		{
-			while (true)
+			boolean done = false;
+			String typeSend = "";
+			
+			while (!done)
 			{
 				String[] filedata = (String[]) ByteCasting.bytesToObject(recbuf);
-				packetsExpected = Integer.parseInt(filedata[1]);
-				packetsPerSend = Integer.parseInt(filedata[2]);
-				String fileName = filedata[0];
-				boolean done = false;
+				typeSend = filedata[0];
+				fileSize = Integer.parseInt(filedata[2]);
+				packetsExpected = Integer.parseInt(filedata[3]);
+				packetsPerSend = Integer.parseInt(filedata[4]);
+				dataPacketSize = Integer.parseInt(filedata[5]);
 				
-				if (packetsExpected > 0 && packetsPerSend > 0 && fileName != "")
+				sendbuf = ByteCasting.objectToBytes(true);
+				socket.getOutputStream().write(sendbuf);
+				socket.getOutputStream().flush();
+				
+				if (typeSend.equalsIgnoreCase("true"))
 				{
-					sendbuf = ByteCasting.objectToBytes(true);
-					socket.getOutputStream().write(sendbuf);
-					socket.getOutputStream().flush();
-					done = fileTransfer(filedata[0]);
+					done = UDPFileTransfer(filedata[1]);
 				}
 				else
 				{
-					sendbuf = ByteCasting.objectToBytes(false);
-					socket.getOutputStream().write(sendbuf);
-					socket.getOutputStream().flush();
+					//socket.setReceiveBufferSize(CHUNKSIZE);
+					//recbuf = new byte[socket.getReceiveBufferSize()];
+					done = TCPFileTransfer(filedata[1]);
 				}
+				
 				
 				// Moet steeds probeer uitvind hoe om meer reqeust te hanteer.
 				// Miskien 'n TCP signal of iets stuur, nog onseker.
 				if (done == true)
 				{
-					break;
+					//Prompt user for moar
 				}
 				else 
 				{
@@ -188,4 +212,5 @@ public class Receiver
 			e.printStackTrace();
 		} 
 	}
+
 }
