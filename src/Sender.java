@@ -55,7 +55,7 @@ public class Sender extends Thread
 			while (counter <= numPackets) 
 			{
 				dataArray = new byte[CHUNKSIZE];
-				byte[] seqArr = byteCasting.longToBytes(counter);
+				byte[] seqArr = ByteCasting.longToBytes(counter);
 				//System.out.println(counter);
 				System.arraycopy(seqArr, 0,	dataArray, 0, 64);
 				selectedFile.read(dataArray, 64, CHUNKSIZE - 64);
@@ -66,7 +66,7 @@ public class Sender extends Thread
 				{
 					packet = new DatagramPacket(buf, buf.length);
 		            socket.receive(packet);
-		            //ArrayList<Long> seq = (ArrayList<Long>) byteCasting.bytesToObject(packet.getData());
+		            ArrayList<Long> seq = (ArrayList<Long>) ByteCasting.bytesToObject(packet.getData());
 				}
 			}
 			selectedFile.close();

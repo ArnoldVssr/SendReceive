@@ -61,7 +61,7 @@ public class Receiver
 
 		int packetsDropped = 0;
 		
-		while (packetsReceived != packetsExpected)
+		while (packetsReceived <= packetsExpected)
 		{
 			recPacket = new DatagramPacket(filedata, filedata.length);
 			
@@ -69,9 +69,9 @@ public class Receiver
 			{
 				if (receivedSeq.size() == packetsPerSend)
 				{
-					byte[] buf = byteCasting.objectToBytes(receivedSeq);
-					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-					dataGramSocket.send(packet);
+					sendbuf = ByteCasting.objectToBytes(receivedSeq);
+					socket.getOutputStream().write(sendbuf);
+					socket.getOutputStream().flush();
 					packetsReceived += receivedSeq.size();
 					receivedSeq.clear();
 				}
@@ -81,7 +81,7 @@ public class Receiver
 				byte[] seqNumArr = new byte[64];
 				long seqnum = 0;
 				System.arraycopy(filedata, 0, seqNumArr, 0, 64);
-				seqnum = byteCasting.bytesToLong(seqNumArr);
+				seqnum = ByteCasting.bytesToLong(seqNumArr);
 				
 				receivedSeq.add(seqnum);
 				
@@ -92,15 +92,13 @@ public class Receiver
 			{
 		        try 
 		        {
-		        	byte[] buf = byteCasting.objectToBytes(receivedSeq);
-					DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-					dataGramSocket.send(packet);
-					packetsReceived += receivedSeq.size();
-					//packetsDropped += 16 - receivedSeq.size();
+		        	sendbuf = ByteCasting.objectToBytes(receivedSeq);
+					socket.getOutputStream().write(sendbuf);
+					socket.getOutputStream().flush();
 					System.out.println(packetsReceived);
 					receivedSeq.clear();
 				} 
-		        catch (IOException e1) 
+		        catch (Exception e1) 
 		        {
 					e1.printStackTrace();
 				}
@@ -110,7 +108,7 @@ public class Receiver
 
 		try 
 		{
-			byte[] buf = byteCasting.objectToBytes(receivedSeq);
+			byte[] buf = ByteCasting.objectToBytes(receivedSeq);
 			DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
 			dataGramSocket.send(packet);
 			packetsReceived += receivedSeq.size();
@@ -140,27 +138,33 @@ public class Receiver
 		// UDP en TCP behoort op sele port te werk
 		int port = Integer.parseInt(args[1]);
 		address = InetAddress.getByName(args[0]);
-		//socket = new Socket(address,port);
+		socket = new Socket(address,port);
 		dataGramSocket = new DatagramSocket(2000);
-		//socket.getInputStream().read(recbuf);
-		byte[] buf = new byte[256];
-		DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 6066);
-        dataGramSocket.send(packet);
+		
+		recbuf = new byte[socket.getReceiveBufferSize()];
+		sendbuf = new byte[socket.getSendBufferSize()];
+		socket.getInputStream().read(recbuf);
 		
 		try 
 		{
-			while (true)
+			boolean done = false;
+			while (!done)
 			{
-				//String[] filedata = (String[]) byteCasting.bytesToObject(recbuf);
-				packetsExpected = 1211;//Integer.parseInt(filedata[1]);
-				packetsPerSend = 4;//Integer.parseInt(filedata[2]);
-				boolean done = fileTransfer("ta.png");
+				String[] filedata = (String[]) ByteCasting.bytesToObject(recbuf);
+				packetsExpected = Integer.parseInt(filedata[1]);
+				packetsPerSend = Integer.parseInt(filedata[2]);
+				
+				sendbuf = ByteCasting.objectToBytes(true);
+				socket.getOutputStream().write(sendbuf);
+				socket.getOutputStream().flush();
+				
+				done = fileTransfer(filedata[0]);
 				
 				// Moet steeds probeer uitvind hoe om meer reqeust te hanteer.
 				// Miskien 'n TCP signal of iets stuur, nog onseker.
 				if (done == true)
 				{
-					break;
+					//Prompt user for moar
 				}
 				else 
 				{
@@ -173,50 +177,6 @@ public class Receiver
 		{
 			e.printStackTrace();
 		} 
-		
-		// Test code related stuff, to have idea of how it works. (personal use)
-		/*********************************************************************/
-		
-		/*RandomAccessFile test = null;
-		RandomAccessFile newFile = new RandomAccessFile("test.png", "rw");
-		//RandomAccessFile newFile = new RandomAccessFile("ntw.mkv", "rw");
-		
-		
-		byte[] recbuff = new byte[1024];
-		
-		try {
-			test = new RandomAccessFile("ta.png", "r");
-			//test = new RandomAccessFile("otw.mkv", "r");
-			
-			long longnum = 0;
-			byte[] longbytearr = Seqnumber.longToBytes(longnum);
-			
-			while (test.getFilePointer() < test.length())
-			{
-				System.arraycopy(longbytearr, 0, recbuff, 0, 8);
-				//System.out.println(test.getFilePointer());
-				test.read(recbuff,8,dataPacketSize);
-				newFile.write(recbuff,8,dataPacketSize);
-				if (longnum == 0)
-				{
-					byte[] seqnum = new byte[8];
-					System.arraycopy(recbuff, 0, seqnum, 0, 8);
-					receivedSeq.add(Seqnumber.bytesToLong(seqnum));
-				}
-				longnum++;
-				longbytearr = Seqnumber.longToBytes(longnum);
-			}
-		} catch (Exception e)
-		{
-			e.printStackTrace();
-		}
-		System.out.println(test.length());
-		test.close();
-		newFile.close();
-		
-		*/
-		
-		/*********************************************************************/
 	}
 
 }
